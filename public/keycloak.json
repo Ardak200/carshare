@@ -1,0 +1,11 @@
+{
+  "realm": "car_sharing_realm",
+  "auth-server-url": "http://192.168.1.2/auth/",
+  "ssl-required": "external",
+  "resource": "prime-react-client",
+  "credentials": {
+    "secret": "zKO0mkRBS111wytBrOU0DdvpZq9EqJJF"
+  },
+  "confidential-port": 0,
+  "public-client": true
+}

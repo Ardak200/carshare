@@ -1,0 +1,4 @@
+# ignore tmp and generic files
+node_modules
+build
+README.md

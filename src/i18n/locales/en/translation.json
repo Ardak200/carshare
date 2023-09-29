@@ -1,0 +1,6 @@
+{
+  "formStepper": {
+    "modelRequired": "Car module is required. Add your car module, please!",
+    "carAndModelRequired": "Car and module is required. Choose your car and module"
+  }
+}

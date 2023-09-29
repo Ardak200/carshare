@@ -1,0 +1,100 @@
+stages:
+  - docker-build
+  - deploy
+  - cleanup
+  - manual
+
+docker-build:
+  stage: docker-build
+  image: docker:stable
+  services:
+    - name: docker:dind
+      alias: thedockerhost
+  variables:
+    DOCKER_HOST: tcp://thedockerhost:2375/
+    DOCKER_DRIVER: overlay2
+    DOCKER_TLS_CERTDIR: ""
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  script:
+    - docker build --pull -t "$CI_REGISTRY_IMAGE" .
+    - docker push "$CI_REGISTRY_IMAGE"
+
+.deploy_template: &deploy_configuration
+  image: cytopia/ansible
+  variables:
+    MESSAGE: 'template'
+  before_script:
+    - apk update && apk add openssh && apk add curl
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+#  after_script:
+#    - 'curl -X POST -H "Content-Type: application/json" -d "{\"chat_id\": \"${CHAT_ID}\", \"text\": \"CI: ${CI_PROJECT_NAME} ${MESSAGE}\"}" https://api.telegram.org/bot${BOT_TOKEN}/sendMessage'
+
+deploy:
+  <<: *deploy_configuration
+  stage: deploy
+  tags:
+    - docker
+  variables:
+    MESSAGE: 'updated and deployed to server'
+  script:
+    - echo $CI_PROJECT_NAME
+    #    - ansible all -i "$SSH_HOSOST," --user "$SSH_USER" -m ansible.builtin.shell -a "cd $PROJECT_PATH; docker-compose pull $CI_PROJECT_NAME; docker-compose up -d --build --remove-orphans $CI_PROJECT_NAME"
+    - ssh $SSH_USER@$SSH_HOST "cd $PROJECT_PATH; docker compose pull $CI_PROJECT_NAME; docker compose up -d --build --remove-orphans $CI_PROJECT_NAME"
+  only:
+    - master
+    - main
+
+restart:
+  <<: *deploy_configuration
+  variables:
+    MESSAGE: 'service restarted'
+  stage: manual
+  tags:
+    - docker
+  script:
+    #    - ansible all -i "$SSH_HOST," --user "$SSH_USER" -m ansible.builtin.shell -a "cd $PROJECT_PATH; docker-compose restart ${CI_PROJECT_NAME}"
+    - ssh $SSH_USER@$SSH_HOST "cd $PROJECT_PATH; docker compose restart $CI_PROJECT_NAME"
+
+  when: manual
+
+stop:
+  <<: *deploy_configuration
+  variables:
+    MESSAGE: 'service stopped'
+  stage: manual
+  tags:
+    - docker
+  script:
+    #    - ansible all -i "$SSH_HOST," --user "$SSH_USER" -m ansible.builtin.shell -a "cd $PROJECT_PATH; docker-compose stop ${CI_PROJECT_NAME}"
+    - ssh $SSH_USER@$SSH_HOST "cd $PROJECT_PATH; docker compose stop ${CI_PROJECT_NAME}"
+  when: manual
+
+cleanup:
+  <<: *deploy_configuration
+  variables:
+    MESSAGE: 'service cleaned'
+  stage: manual
+  tags:
+    - docker
+  script:
+    #    - ansible all -i "$SSH_HOST," --user "$SSH_USER" -m ansible.builtin.shell -a "cd $PROJECT_PATH; docker-compose down ${CI_PROJECT_NAME}"
+    - ssh $SSH_USER@$SSH_HOST "cd $PROJECT_PATH; docker compose down ${CI_PROJECT_NAME}"
+  when: manual
+
+purge:
+  <<: *deploy_configuration
+  variables:
+    MESSAGE: 'service purged'
+  stage: manual
+  tags:
+    - docker
+  script:
+    #    - ansible all -i "$SSH_HOST," --user "$SSH_USER" -m ansible.builtin.shell -a "cd $PROJECT_PATH; docker-compose down -v ${CI_PROJECT_NAME}"
+    - ssh $SSH_USER@$SSH_HOST "cd $PROJECT_PATH; docker compose down -v ${CI_PROJECT_NAME}"
+  when: manual
+

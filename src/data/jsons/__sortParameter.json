@@ -1,0 +1,17 @@
+[
+  {
+    "parameter": "createdDate",
+    "direction": "ASCENDING",
+    "name": "дате объявления"
+  },
+  {
+    "parameter": "priceByDay",
+    "direction": "ASCENDING",
+    "name": "возрастанию цены"
+  },
+  {
+    "parameter": "priceByDay",
+    "direction": "DESCENDING",
+    "name": "убыванию цены"
+  }
+]
